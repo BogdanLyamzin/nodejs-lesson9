@@ -1,59 +1,68 @@
-const express = require('express')
-const path = require('path')
-const fs = require('fs').promises
-const app = express()
-const multer = require('multer')
+const express = require("express");
+const path = require("path");
+const fs = require("fs").promises;
+const multer = require("multer");
 
-const uploadDir = path.join(process.cwd(), 'temp')
-const storeImage = path.join(process.cwd(), 'uploads/images')
+const app = express();
+
+const uploadDir = path.join(process.cwd(), "temp");
+const storageDir = path.join(process.cwd(), "uploads/avatars");
 
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
+    destination: (req, file, cb)=> {
         cb(null, uploadDir)
     },
-    filename: (req, file, cb) => {
-        cb(null, file.originalname)
+    filename: (req, file, cb)=>{
+        const now = new Date();
+        const fileName = `${now.getTime()}-${file.originalname}`;
+        cb(null, fileName)
     },
     limits: {
-        fileSize: 1048576,
-    },
-})
+        fileSize: 1200000
+    }
+});
 
 const upload = multer({
-    storage: storage,
+    storage
+});
+
+
+
+/*
+const profileFiles = [
+    {
+        name: "avatar", maxCount: 1
+    },
+    {
+        name: "photos", maxCount: 3
+    },
+];
+app.post("/profile", upload.files(profileFiles), async(req, res, next)=> {
+
 })
 
-app.post('/profile', upload.single('avatar'), async (req, res, next) => {
-    const { description } = req.body
-    const { path: temporaryName, originalname } = req.file
-    const fileName = path.join(storeImage, originalname)
+*/
+
+app.post("/profile", upload.single("avatar"), async(req, res, next)=> {
+    const {path: tempName, filename} = req.file;
+    console.log(req.file)
+    const fileName = path.join(storageDir, filename);
+    // console.log(tempName)
+    // console.log(fileName)
     try {
-        await fs.rename(temporaryName, fileName)
-    } catch (err) {
-        await fs.unlink(temporaryName)
-        return next(err)
+        await fs.rename(tempName, fileName);
     }
-    res.json({ description, message: 'Файл успешно загружен', status: 200 })
-})
-
-// catch 404 and forward to error handler
-app.use((req, res, next) => {
-    res.status(404)
+    catch (error){
+        await fs.unlink(tempName);
+        return next(error);
+    }
     res.json({
-        status: "error",
-        code: 404,
-        message: ""
+        status: "success",
+        code: 201,
+        message: "Файл успешно загружен"
     })
 })
 
-app.use((err, req, res, next) => {
-    const status = err.status || 500;
-    res.status(status);
-    res.json({ message: err.message, status: err.status, code: status })
-})
+const port = process.env.PORT || 3000;
 
-const PORT = process.env.PORT || 3000
-
-app.listen(PORT, async () => {
-    console.log(`Server running. Use on port:${PORT}`)
-})
+app.listen(port)
